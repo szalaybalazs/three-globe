@@ -1,0 +1,90 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+canvas {
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+div.globe-wrapper {
+  background: linear-gradient(to right bottom, #081827, #081827);
+}
+
+div.globe-container {
+  position: relative;
+}
+
+div#popup-wrapper {
+  position: absolute;
+  width: 280px;
+  top: 0;
+  left: 0;
+  transition: opacity 480ms;
+  pointer-events: none;
+  img {
+    width: 32px;
+    height: 32px;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    animation: example 1800ms linear infinite;
+    left: -16px;
+    bottom: -16px;
+  }
+  svg {
+    position: absolute;
+    bottom: -2px;
+    left: -2px;
+    fill: white;
+    stroke: white;
+  }
+  div.content-wrapper {
+    position: absolute;
+    left: 40px;
+    bottom: 40px;
+    span.date {
+      color: white;
+      font-size: 12px;
+      margin-top: 8px;
+      text-align: right;
+      display: block;
+      position: absolute;
+      right: 0;
+    }
+    div.content {
+      padding: 16px;
+      opacity: 1;
+      background: #fff;
+      color: #333;
+      border-radius: 5px;
+      span.title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        font-size: 14px;
+        margin-top: 8px;
+      }
+    }
+  }
+}
+
+@keyframes example {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
