@@ -1218,8 +1218,8 @@ const _handleLoad = async (wrapper) => {
         });
 
         dotMesh = new THREE.Mesh(dotGeometry, material);
-        scale *= 1.2;
-        scale += 0.8;
+        scale *= 0.7;
+        scale += 1.2;
       }
 
       // Setting scale and position
