@@ -1069,7 +1069,7 @@ const addFog = (scene) => {
   const near = 1000;
 
   // Fog far plane
-  const far = 2200;
+  const far = 2000;
 
   // Main scene
   scene.fog = new THREE.Fog(color, near, far);
@@ -1165,30 +1165,24 @@ const _handleLoad = async (wrapper) => {
 
   // Create scene
   const { scene, camera, renderer, controls } = setupRenderer(wrapper);
-  // addFog(scene);
+  addFog(scene);
 
   // Create mesh group
   const group = new THREE.Group();
   const controller = new THREE.Group();
 
   // A hexagon with a radius of 2 pixels looks like a circle
-  const dotGeometry = new THREE.CircleGeometry(2, 5);
-  const material = new THREE.MeshStandardMaterial({
-    color: yellow,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: Math.random() / 2 + 0.25,
-  });
+  const dotGeometry = new THREE.CircleGeometry(2, 12);
 
   // Active mesh with bigger radius
-  const activeGeometry = new THREE.CircleGeometry(2, 25);
+  const activeGeometry = new THREE.CircleGeometry(4, 25);
   const activeMaterial = new THREE.LineBasicMaterial({
     color: 0xb800c8,
     side: THREE.DoubleSide,
     opacity: 1,
   });
   // controller mesh with bigger radius
-  const controllerGeometry = new THREE.SphereGeometry(4, 25, 25);
+  const controllerGeometry = new THREE.SphereGeometry(6, 25, 25);
   const controllerMaterial = new THREE.LineBasicMaterial({
     color: 0x000000,
     side: THREE.DoubleSide,
@@ -1210,12 +1204,23 @@ const _handleLoad = async (wrapper) => {
       let dotMesh;
       let scale = Math.random() + 0.5;
       if (val > 120) {
-        scale *= 4;
+        scale = 2.4;
 
         dotMesh = new THREE.Mesh(activeGeometry, activeMaterial);
         dotMesh.meta = poiMap[String(id)];
         meshes.push(dotMesh);
-      } else dotMesh = new THREE.Mesh(dotGeometry, material);
+      } else {
+        const material = new THREE.MeshStandardMaterial({
+          color: yellow,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: Math.random() / 2 + 0.25,
+        });
+
+        dotMesh = new THREE.Mesh(dotGeometry, material);
+        scale *= 1.2;
+        scale += 0.8;
+      }
 
       // Setting scale and position
       dotMesh.scale.x = scale;
