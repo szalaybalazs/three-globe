@@ -1179,15 +1179,6 @@ const _handleLoad = async (wrapper) => {
 
   // A hexagon with a radius of 2 pixels looks like a circle
   const dotGeometry = new THREE.CircleGeometry(2, 5);
-  const dotMaterials = new Array(5).fill(null).map(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: yellow,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: Math.random(),
-      })
-  );
 
   // Active mesh with bigger radius
   const activeGeometry = new THREE.CircleGeometry(4, 25);
@@ -1195,13 +1186,6 @@ const _handleLoad = async (wrapper) => {
     color: 0xb800c8,
     side: THREE.DoubleSide,
     opacity: 1,
-  });
-  // controller mesh with bigger radius
-  const controllerGeometry = new THREE.SphereGeometry(6, 25, 25);
-  const controllerMaterial = new THREE.LineBasicMaterial({
-    color: 0x000000,
-    side: THREE.DoubleSide,
-    opacity: 0,
   });
 
   const vector = new THREE.Vector3(0, 0, 0);
@@ -1224,6 +1208,9 @@ const _handleLoad = async (wrapper) => {
     u_time: { value: 0 },
     yellow: { type: "vec3", value: new THREE.Color(0xffff00) },
     colorA: { type: "vec3", value: new THREE.Color(0x74ebd5) },
+    fogColor: { type: "c", value: scene.fog.color },
+    fogNear: { type: "f", value: scene.fog.near },
+    fogFar: { type: "f", value: scene.fog.near },
   };
   const fragmentShader = `
       uniform vec3 yellow; 
@@ -1232,8 +1219,18 @@ const _handleLoad = async (wrapper) => {
       varying vec3 vUv;
       varying vec3 vPos;
 
+      uniform vec3 fogColor;
+      uniform float fogNear;
+      uniform float fogFar;
+
       void main() {
         gl_FragColor = vec4(yellow, (sin((u_time / 1000.0) + (vPos.x + vPos.y + vPos.z) * 100.0) / 4.0) + 0.25 + .1);
+      #ifdef USE_FOG
+       
+        float depth = gl_FragCoord.z / gl_FragCoord.w;
+        float fogFactor = smoothstep( fogNear, fogFar, depth );
+        gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor / 1.2);
+      #endif
     }
   `;
 
@@ -1241,7 +1238,7 @@ const _handleLoad = async (wrapper) => {
     uniforms: uniforms,
     fragmentShader: fragmentShader,
     vertexShader: vertexShader,
-    // fog: true,
+    fog: true,
     transparent: true,
   });
   shaderMaterial.side = THREE.DoubleSide;
