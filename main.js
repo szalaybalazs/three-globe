@@ -1,5 +1,6 @@
 import * as THREE from "https://cdn.skypack.dev/three@0.129.0";
 
+// DATA
 const poiMap = {
   255: {
     label: "🇬🇧 Liverpool",
@@ -22,6 +23,19 @@ const poiMap = {
     description: "250 AUD for Car rental 🚗",
   },
 };
+
+const DOT_RADIUS = 580;
+const DOT_COUNT = 45000;
+const green = 0xc1fdc3;
+const yellow = 0xf9c982;
+const globeColor = 0x101c45;
+
+const FAR_PLANE = 2000;
+const NEAR_PLANE = 500;
+
+let activeObject = null;
+let meshes = [];
+
 const {
   EventDispatcher,
   MOUSE,
@@ -1052,26 +1066,10 @@ class WorldMap {
   }
 }
 
-const DOT_RADIUS = 580;
-const DOT_COUNT = 20000;
-const green = 0xc1fdc3;
-const yellow = 0xf9c982;
-const globeColor = 0x101c45;
-
-let activeObject = null;
-let meshes = [];
-
 const addFog = (scene) => {
-  // Fog color
   const color = globeColor;
-
-  // Fog near plane
-  const near = 1000;
-
-  // Fog far plane
-  const far = 2000;
-
-  // Main scene
+  const near = NEAR_PLANE;
+  const far = FAR_PLANE;
   scene.fog = new THREE.Fog(color, near, far);
 };
 
@@ -1085,12 +1083,20 @@ const getDistance = (camera, mesh) => {
 
   return vector.distanceTo(camera.position);
 };
+
 const getClosest = (camera) => {
   return meshes
     .map((mesh) => [mesh, getDistance(camera, mesh)])
     .sort((a, b) => a[1] - b[1])[0][0];
 };
 
+const addLight = (scene) => {
+  const skyColor = green;
+  const groundColor = yellow;
+  const intensity = 1.8;
+  const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
+  scene.add(light);
+};
 const addGlobe = (scene) => {
   const globeGeometry = new THREE.SphereGeometry(DOT_RADIUS - 20, 250, 250);
   const globeMaterial = new THREE.MeshStandardMaterial({
@@ -1110,7 +1116,7 @@ const setupRenderer = (wrapper) => {
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    5000
+    FAR_PLANE
   );
   const renderer = new THREE.WebGLRenderer({
     antialias: false,
@@ -1145,7 +1151,7 @@ function updateScreenPosition(renderer, camera, popup) {
   const canvas = renderer.domElement;
   const { width, height } = canvas.getBoundingClientRect();
 
-  const spriteBehindObject = false; //vector.distanceTo(camera.position) > 1200;
+  const spriteBehindObject = false;
   vector.project(camera);
 
   vector.x = Math.round((0.5 + vector.x / 2) * width);
@@ -1172,7 +1178,16 @@ const _handleLoad = async (wrapper) => {
   const controller = new THREE.Group();
 
   // A hexagon with a radius of 2 pixels looks like a circle
-  const dotGeometry = new THREE.CircleGeometry(2, 12);
+  const dotGeometry = new THREE.CircleGeometry(2, 5);
+  const dotMaterials = new Array(5).fill(null).map(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: yellow,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: Math.random(),
+      })
+  );
 
   // Active mesh with bigger radius
   const activeGeometry = new THREE.CircleGeometry(4, 25);
@@ -1190,6 +1205,46 @@ const _handleLoad = async (wrapper) => {
   });
 
   const vector = new THREE.Vector3(0, 0, 0);
+  const singleGeometry = new THREE.BufferGeometry();
+
+  const vertexShader = `
+    varying vec3 vUv; 
+    varying vec3 vPos; 
+
+    void main() {
+      vUv = position; 
+
+      vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
+      vPos = vec3(modelMatrix[1]);
+      gl_Position = projectionMatrix * modelViewPosition; 
+    }
+  `;
+
+  let uniforms = {
+    u_time: { value: 0 },
+    yellow: { type: "vec3", value: new THREE.Color(0xffff00) },
+    colorA: { type: "vec3", value: new THREE.Color(0x74ebd5) },
+  };
+  const fragmentShader = `
+      uniform vec3 yellow; 
+      uniform float u_time; 
+      uniform vec3 colorB; 
+      varying vec3 vUv;
+      varying vec3 vPos;
+
+      void main() {
+        gl_FragColor = vec4(yellow, (sin((u_time / 1000.0) + (vPos.x + vPos.y + vPos.z) * 100.0) / 4.0) + 0.25 + .1);
+    }
+  `;
+
+  let shaderMaterial = new THREE.ShaderMaterial({
+    uniforms: uniforms,
+    fragmentShader: fragmentShader,
+    vertexShader: vertexShader,
+    // fog: true,
+    transparent: true,
+  });
+  shaderMaterial.side = THREE.DoubleSide;
   for (let i = DOT_COUNT; i >= 0; i--) {
     const phi = Math.acos(-1 + (2 * i) / DOT_COUNT);
     const theta = Math.sqrt(DOT_COUNT * Math.PI) * phi;
@@ -1200,29 +1255,23 @@ const _handleLoad = async (wrapper) => {
     if (val > 0) {
       vector.setFromSphericalCoords(DOT_RADIUS, phi, theta);
 
-      // Creating mesh
       let dotMesh;
       let scale = Math.random() + 0.5;
-      if (val > 120) {
+      if (
+        val > 120 &&
+        poiMap[String(id)] &&
+        !meshes.find((mesh) => mesh.meta_id === String(id))
+      ) {
         scale = 2.4;
 
         dotMesh = new THREE.Mesh(activeGeometry, activeMaterial);
         dotMesh.meta = poiMap[String(id)];
+        dotMesh.meta_id = String(id);
         meshes.push(dotMesh);
       } else {
-        const material = new THREE.MeshStandardMaterial({
-          color: yellow,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: Math.random() / 2 + 0.25,
-        });
-
-        dotMesh = new THREE.Mesh(dotGeometry, material);
-        scale *= 0.7;
-        scale += 1.2;
+        scale = Math.random() * 1.3 + 0.6;
+        dotMesh = new THREE.Mesh(dotGeometry, shaderMaterial);
       }
-
-      // Setting scale and position
       dotMesh.scale.x = scale;
       dotMesh.scale.y = scale;
       dotMesh.scale.z = scale;
@@ -1230,84 +1279,30 @@ const _handleLoad = async (wrapper) => {
       dotMesh.position.y = vector.y;
       dotMesh.position.z = vector.z;
       dotMesh.lookAt(new THREE.Vector3(0, 0, 0));
-
-      dotMesh.renderOrder = 0.5;
-      group.add(dotMesh);
-
-      if (val > 120) {
-        // Setting scale and position
-        const controllerMesh = new THREE.Mesh(controllerGeometry);
-        controllerMesh.meta = poiMap[String(id)];
-        controllerMesh.target = dotMesh;
-
-        controllerMesh.scale.x = scale * 4;
-        controllerMesh.scale.y = scale * 4;
-        controllerMesh.scale.z = scale * 4;
-        controllerMesh.position.x = vector.x;
-        controllerMesh.position.y = vector.y;
-        controllerMesh.position.z = vector.z;
-        controllerMesh.lookAt(new THREE.Vector3(0, 0, 0));
-        controllerMesh.visible = false;
-
-        controller.add(controllerMesh);
-        controllerMesh.renderOrder = 0;
-      }
+      scene.add(dotMesh);
     }
   }
 
-  {
-    const color = green;
-    const intensity = 0;
-    const light = new THREE.AmbientLight(color, intensity);
-    scene.add(light);
-  }
-  {
-    const skyColor = green; // light blue
-    const groundColor = yellow; // brownish orange
-    const intensity = 1.8;
-    const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
-    scene.add(light);
-  }
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xff00ff,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: Math.random() / 2 + 0.25,
+  });
+
+  const mesh = new THREE.Mesh(singleGeometry, material);
+  scene.add(mesh);
+
+  group.rotation.y = -1;
 
   scene.add(group);
-  scene.add(controller);
-
+  addLight(scene);
   addGlobe(scene);
 
-  controls.update();
-  let previous = 0;
-
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-
-  const _handleClick = ({ clientX, clientY }) => {
-    mouse.x = (clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(controller.children);
-
-    if (intersects.length > 0) {
-      console.log(intersects[0].object.target);
-      if (intersects[0].distance < 1200 && intersects[0].object.target) {
-        activeObject = intersects[0].object.target;
-        const meta = intersects[0].object.meta;
-        document.querySelector("#popup-title").innerText = meta.label;
-        document.querySelector("#popup-description").innerText =
-          meta.description;
-      }
-    } else activeObject = null;
-  };
-
-  // renderer.domElement.addEventListener("click", _handleClick);
-  group.rotation.y = -1;
   const popup = document.querySelector("#popup-wrapper");
   const animate = (time) => {
     requestAnimationFrame(animate);
-
-    const delta = time - previous;
-    previous = time;
-    // group.rotation.y += 0.0001 * delta;
-
+    shaderMaterial.uniforms.u_time.value = time;
     controls.update();
     renderer.setClearColor(0x000000, 0);
     renderer.render(scene, camera);
