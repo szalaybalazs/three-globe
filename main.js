@@ -25,7 +25,7 @@ const poiMap = {
 };
 
 const DOT_RADIUS = 580;
-const DOT_COUNT = 45000;
+const DOT_COUNT = 60000;
 const green = 0xc1fdc3;
 const yellow = 0xf9c982;
 const globeColor = 0x101c45;
@@ -1051,8 +1051,8 @@ class WorldMap {
       const context = this.canvas.getContext("2d");
       if (!context) return 0;
       const { data } = context.getImageData(
-        Math.min(1, Math.max(0, x)) * 2754,
-        Math.min(1, Math.max(0, y)) * 1397,
+        Math.min(1, Math.max(0, x)) * 1336,
+        Math.min(1, Math.max(0, y)) * 733,
         1,
         1
       );
@@ -1197,7 +1197,9 @@ const _handleLoad = async (wrapper) => {
 
     void main() {
       vUv = position; 
-
+      vec4 localPosition = vec4( position, 1.);
+      vec4 worldPosition = modelMatrix * localPosition;
+      vec4 viewPosition = viewMatrix * worldPosition;
       vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
       vPos = vec3(modelMatrix[1]);
       gl_Position = projectionMatrix * modelViewPosition; 
@@ -1224,7 +1226,13 @@ const _handleLoad = async (wrapper) => {
       uniform float fogFar;
 
       void main() {
-        gl_FragColor = vec4(yellow, (sin((u_time / 1000.0) + (vPos.x + vPos.y + vPos.z) * 100.0) / 4.0) + 0.25 + .1);
+        // gl_FragColor = vec4(yellow, (sin((u_time / 1000.0) + ((vPos.x + vPos.y + vPos.z) * 10.0) * 1.0) / 4.0) + 0.25 + .1);
+        vec3 pos = vPos / 600.0;
+        // float opacity = abs(sin(abs(pos.x + pos.z) + abs(0.0) + (u_time / 1000.0))); //1.0; //abs(sin(vPos.x / vPos.z + u_time / 1500.0)) / 2.0;
+        
+        
+        float opacity = (sin((u_time / 500.0) + ((vPos.x + vPos.z) * 10.0) * 1.0) / 4.0) + 0.4;
+        gl_FragColor = vec4(yellow, opacity);
       #ifdef USE_FOG
        
         float depth = gl_FragCoord.z / gl_FragCoord.w;
@@ -1249,7 +1257,7 @@ const _handleLoad = async (wrapper) => {
     const x = (theta % (Math.PI * 2)) / (Math.PI * 2);
     const y = phi / Math.PI;
     const [id, g, b, val] = map.getColor(x, y);
-    if (val > 0) {
+    if (id < 255) {
       vector.setFromSphericalCoords(DOT_RADIUS, phi, theta);
 
       let dotMesh;
@@ -1266,7 +1274,7 @@ const _handleLoad = async (wrapper) => {
         dotMesh.meta_id = String(id);
         meshes.push(dotMesh);
       } else {
-        scale = Math.random() * 1.3 + 0.6;
+        scale = Math.random() * 0.4 + 0.8;
         dotMesh = new THREE.Mesh(dotGeometry, shaderMaterial);
       }
       dotMesh.scale.x = scale;
